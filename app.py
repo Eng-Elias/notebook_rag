@@ -44,6 +44,8 @@ if "llm_provider" not in st.session_state:
 if "llm_model" not in st.session_state:
     app_config = ConfigManager.get_app_config()
     st.session_state.llm_model = app_config.get("llm", {}).get("model", "gpt-3.5-turbo")
+if "notebook_selector" not in st.session_state:
+    st.session_state.notebook_selector = None
 
 def create_notebook():
     """Create a new notebook."""
@@ -69,6 +71,7 @@ def create_notebook():
         
         # Select the new notebook
         st.session_state.selected_notebook = notebook_name
+        st.session_state.notebook_selector = notebook_name
         
         # Initialize chat history for the new notebook
         if notebook_name not in st.session_state.chat_history:
@@ -89,41 +92,70 @@ def delete_notebook():
     """Delete the selected notebook."""
     notebook_name = st.session_state.selected_notebook
     if notebook_name:
-        # Delete the notebook from database
-        DatabaseManager.delete_notebook(notebook_name)
-        
-        # Delete the notebook's vector store
-        VectorStoreManager.delete_notebook(notebook_name)
-        
-        # Delete the notebook's files directory
-        notebook_files_dir = Paths.get_notebook_files_dir(notebook_name)
-        if os.path.exists(notebook_files_dir):
-            import shutil
-            shutil.rmtree(notebook_files_dir)
-        
-        # Update notebooks list
-        st.session_state.notebooks = [notebook["name"] for notebook in DatabaseManager.list_notebooks()]
-        
-        # Clear selected notebook
-        st.session_state.selected_notebook = None
-        
-        # Clear chat history for the deleted notebook
-        if notebook_name in st.session_state.chat_history:
-            del st.session_state.chat_history[notebook_name]
-        
-        # Clear documents for the deleted notebook
-        if notebook_name in st.session_state.documents:
-            del st.session_state.documents[notebook_name]
-        
-        st.success(f"Notebook '{notebook_name}' deleted successfully.")
+        try:
+            # Delete the notebook from database
+            DatabaseManager.delete_notebook(notebook_name)
+            
+            # Try to delete the notebook's vector store with error handling
+            try:
+                VectorStoreManager.delete_notebook(notebook_name)
+            except Exception as e:
+                st.warning(f"Could not completely delete vector store: {str(e)}")
+                # Try to force close any open file handles
+                import gc
+                gc.collect()
+                
+                # Try to delete the directory manually
+                vector_db_dir = Paths.get_notebook_vector_db_dir(notebook_name)
+                if os.path.exists(vector_db_dir):
+                    try:
+                        import shutil
+                        shutil.rmtree(vector_db_dir, ignore_errors=True)
+                    except Exception:
+                        pass
+            
+            # Delete the notebook's files directory
+            notebook_files_dir = Paths.get_notebook_files_dir(notebook_name)
+            if os.path.exists(notebook_files_dir):
+                try:
+                    import shutil
+                    shutil.rmtree(notebook_files_dir, ignore_errors=True)
+                except Exception as e:
+                    st.warning(f"Could not completely delete files directory: {str(e)}")
+            
+            # Update notebooks list
+            st.session_state.notebooks = [notebook["name"] for notebook in DatabaseManager.list_notebooks()]
+            
+            # Clear selected notebook
+            st.session_state.selected_notebook = None
+            st.session_state.notebook_selector = None if not st.session_state.notebooks else st.session_state.notebooks[0]
+            
+            # Clear chat history for the deleted notebook
+            if notebook_name in st.session_state.chat_history:
+                del st.session_state.chat_history[notebook_name]
+            
+            # Clear documents for the deleted notebook
+            if notebook_name in st.session_state.documents:
+                del st.session_state.documents[notebook_name]
+            
+            st.success(f"Notebook '{notebook_name}' deleted successfully.")
+        except Exception as e:
+            st.error(f"Error deleting notebook: {str(e)}")
 
 def select_notebook():
     """Select a notebook."""
     notebook_name = st.session_state.notebook_selector
+    
+    # If "None" is selected, clear the selected notebook
+    if notebook_name == "None":
+        st.session_state.selected_notebook = None
+        return
+    
+    # Otherwise, set the selected notebook
     if notebook_name:
         st.session_state.selected_notebook = notebook_name
         
-        # Initialize chat history for the selected notebook if it doesn't exist
+        # Initialize chat history for the selected notebook
         if notebook_name not in st.session_state.chat_history:
             st.session_state.chat_history[notebook_name] = []
         
@@ -276,6 +308,44 @@ with st.sidebar:
     st.title("Notebook-RAG 📚")
     st.write("Chat with your documents in organized notebooks.")
     
+    # Create new notebook
+    st.subheader("Create New Notebook")
+    st.text_input("Notebook Name (min 3 chars)", key="new_notebook_name")
+    st.button("Create Notebook", on_click=create_notebook)
+    
+    # Select notebook
+    st.subheader("Select Notebook")
+    if st.session_state.notebooks:
+        # Add "None" as the first option
+        options = ["None"] + st.session_state.notebooks
+        st.selectbox(
+            "Choose a notebook",
+            options=options,
+            index=0 if st.session_state.notebook_selector is None else options.index(st.session_state.notebook_selector) if st.session_state.notebook_selector in options else 0,
+            key="notebook_selector",
+            on_change=select_notebook
+        )
+    else:
+        st.info("No notebooks available. Create one to get started.")
+    
+    # Delete notebook
+    if st.session_state.selected_notebook:
+        st.button("Delete Selected Notebook", on_click=delete_notebook)
+    
+    # Upload documents
+    if st.session_state.selected_notebook:
+        st.subheader("Upload Documents")
+        st.write("Supported formats: PDF, TXT, MD")
+        uploaded_files = st.file_uploader(
+            "Choose files (files will be uploaded automatically)",
+            accept_multiple_files=True,
+            type=["pdf", "txt", "md"],
+            on_change=lambda: process_uploaded_files(st.session_state.uploaded_files) if 'uploaded_files' in st.session_state else None,
+            key="uploaded_files"
+        )
+        if uploaded_files:
+            st.button("Process Files", on_click=process_files)
+
     # LLM Settings
     st.subheader("LLM Settings")
     
@@ -306,40 +376,7 @@ with st.sidebar:
     st.button("Update LLM Settings", on_click=update_llm_settings)
     
     st.markdown("---")
-    
-    # Create new notebook
-    st.subheader("Create New Notebook")
-    st.text_input("Notebook Name (min 3 chars)", key="new_notebook_name")
-    st.button("Create Notebook", on_click=create_notebook)
-    
-    # Select notebook
-    st.subheader("Select Notebook")
-    if st.session_state.notebooks:
-        st.selectbox(
-            "Choose a notebook",
-            options=st.session_state.notebooks,
-            key="notebook_selector",
-            on_change=select_notebook
-        )
-    else:
-        st.info("No notebooks available. Create one to get started.")
-    
-    # Delete notebook
-    if st.session_state.selected_notebook:
-        st.button("Delete Selected Notebook", on_click=delete_notebook)
-    
-    # Upload documents
-    if st.session_state.selected_notebook:
-        st.subheader("Upload Documents")
-        st.write("Supported formats: PDF, TXT, MD")
-        uploaded_files = st.file_uploader(
-            "Choose files",
-            accept_multiple_files=True,
-            type=["pdf", "txt", "md"]
-        )
-        if uploaded_files:
-            st.button("Upload Files", on_click=lambda: process_uploaded_files(uploaded_files))
-            st.button("Process Files", on_click=process_files)
+
 
 # Main content
 if st.session_state.selected_notebook:
@@ -367,7 +404,10 @@ if st.session_state.selected_notebook:
 else:
     st.title("Welcome to Notebook-RAG")
     st.write("Please select or create a notebook to get started.")
-    st.info("Use the sidebar to create a new notebook or select an existing one.")
+    if st.session_state.notebooks:
+        st.info("Select a notebook from the dropdown in the sidebar to begin.")
+    else:
+        st.info("Use the sidebar to create a new notebook to get started.")
 
 # Footer
 st.markdown("---")

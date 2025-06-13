@@ -241,5 +241,66 @@ class VectorStoreManager:
         if not os.path.exists(notebook_dir):
             return False
         
-        shutil.rmtree(notebook_dir)
-        return True
+        # First, try to close any open connections to the ChromaDB collection
+        try:
+            # Create a client to the collection's directory
+            client = chromadb.PersistentClient(path=notebook_dir)
+            
+            # Get the collection if it exists
+            try:
+                collection = client.get_collection(name=notebook_name)
+                # Delete the collection through the API first
+                client.delete_collection(name=notebook_name)
+            except Exception:
+                # Collection might not exist or other error
+                pass
+            
+            # Explicitly delete client to close connections
+            try:
+                del collection
+            except:
+                pass
+            
+            try:
+                del client
+            except:
+                pass
+            
+            # Force garbage collection to release file handles
+            import gc
+            gc.collect()
+        except Exception as e:
+            print(f"Error closing ChromaDB connections: {str(e)}")
+        
+        # Wait a moment to ensure file handles are released
+        import time
+        time.sleep(1)
+        
+        # Try to delete directory with multiple approaches
+        success = False
+        
+        # Approach 1: Use shutil.rmtree directly
+        try:
+            shutil.rmtree(notebook_dir)
+            success = True
+        except Exception as e:
+            print(f"First deletion attempt failed: {str(e)}")
+        
+        # Approach 2: Use os.system to force deletion (Windows specific)
+        if not success and os.name == 'nt':  # Windows
+            try:
+                import subprocess
+                subprocess.run(f'rd /s /q "{notebook_dir}"', shell=True)
+                success = not os.path.exists(notebook_dir)
+            except Exception as e:
+                print(f"Second deletion attempt failed: {str(e)}")
+        
+        # Approach 3: Try with ignore_errors
+        if not success:
+            try:
+                shutil.rmtree(notebook_dir, ignore_errors=True)
+                success = not os.path.exists(notebook_dir)
+            except Exception as e:
+                print(f"Third deletion attempt failed: {str(e)}")
+        
+        return success
