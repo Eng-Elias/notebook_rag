@@ -1,19 +1,14 @@
 llm:
-  provider: "groq"  # Options: openai, gemini, groq, ollama, lmstudio
+  provider: "groq"  # Options: groq, ollama
   model: "meta-llama/llama-4-scout-17b-16e-instruct"  # Default model for the selected provider
 
 # Provider-specific configurations
 providers:
-  gemini:
-    models: ["gemini-2.5-pro-preview-06-05", "gemini-2.5-flash-preview-05-20", "gemini-2.0-flash"]
   groq:
     models: ["meta-llama/llama-4-scout-17b-16e-instruct", "llama-3.1-8b-instant"]
   ollama:
-    models: ["llama3", "mistral", "mixtral"]
+    models: ["deepseek-r1:1.5b"]
     host: "http://localhost:11434"
-  lmstudio:
-    models: ["local-model"]
-    host: "http://localhost:1234/v1"
 
 vectordb:
   threshold: 0.5

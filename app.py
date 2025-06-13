@@ -284,6 +284,7 @@ def send_message():
             query=message,
             n_results=vectordb_params.get("n_results", 5),
             threshold=vectordb_params.get("threshold", 0.3),
+            provider=st.session_state.llm_provider,
             model_name=st.session_state.llm_model
         )
         
