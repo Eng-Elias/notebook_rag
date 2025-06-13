@@ -34,14 +34,6 @@ class ConversationManager:
         if not model_name:
             model_name = llm_config.get("model", "meta-llama/llama-4-scout-17b-16e-instruct")
         
-        # Get provider-specific configurations
-        providers_config = app_config.get("providers", {})
-
-        print("=" * 20)
-        print("Provider: ", provider)
-        print("Model: ", model_name)
-        print("=" * 20)
-        
         if provider == "groq":
             return ChatGroq(model=model_name)
 
