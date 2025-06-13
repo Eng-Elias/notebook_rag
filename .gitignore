@@ -31,3 +31,5 @@ temp.csv
 test.py
 
 vector_db/
+notebooks.db
+uploaded_files/

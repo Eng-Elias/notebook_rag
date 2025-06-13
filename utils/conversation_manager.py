@@ -3,9 +3,11 @@ Conversation management for Notebook-RAG application.
 """
 
 import os
-from typing import List, Dict, Any, Optional, Union
+from typing import Optional
 from langchain_groq import ChatGroq
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain.schema import HumanMessage, SystemMessage
+import requests
 
 from .vector_store_manager import VectorStoreManager
 from .prompt_builder import PromptBuilder
@@ -17,7 +19,7 @@ class ConversationManager:
     @staticmethod
     def get_llm(model_name: Optional[str] = None):
         """
-        Get a language model instance.
+        Get a language model instance based on the configuration.
         
         Args:
             model_name: Optional model name to use. If not provided, will use the one from config.
@@ -25,17 +27,79 @@ class ConversationManager:
         Returns:
             Language model instance.
         """
-        # Get model from config if not provided
-        if not model_name:
-            app_config = ConfigManager.get_app_config()
-            model_name = app_config.get("llm", "gpt-3.5-turbo")
+        # Get config
+        app_config = ConfigManager.get_app_config()
+        llm_config = app_config.get("llm", {})
         
-        # Check if it's a Groq model
-        if "groq" in model_name.lower() or os.environ.get("GROQ_API_KEY"):
+        # Get provider and model
+        provider = llm_config.get("provider", "groq")
+        if not model_name:
+            model_name = llm_config.get("model", "meta-llama/llama-4-scout-17b-16e-instruct")
+        
+        # Get provider-specific configurations
+        providers_config = app_config.get("providers", {})
+        
+        if provider == "groq":
             return ChatGroq(model=model_name)
-        # Otherwise use OpenAI
+        
+        elif provider == "gemini":
+            return ChatGoogleGenerativeAI(model=model_name)
+        
+        elif provider == "ollama":
+            host = providers_config.get("ollama", {}).get("host", "http://localhost:11434")
+            
+            # Custom implementation for Ollama
+            class OllamaChat:
+                def __init__(self, model, host):
+                    self.model = model
+                    self.host = host
+                
+                def invoke(self, prompt):
+                    # Extract prompt content
+                    if isinstance(prompt, list):
+                        # Handle list of messages
+                        messages = []
+                        for msg in prompt:
+                            if isinstance(msg, SystemMessage):
+                                messages.append({"role": "system", "content": msg.content})
+                            elif isinstance(msg, HumanMessage):
+                                messages.append({"role": "user", "content": msg.content})
+                            else:
+                                messages.append({"role": "assistant", "content": msg.content})
+                        
+                        payload = {
+                            "model": self.model,
+                            "messages": messages
+                        }
+                    else:
+                        # Handle string prompt
+                        payload = {
+                            "model": self.model,
+                            "prompt": prompt
+                        }
+                    
+                    # Make API call
+                    response = requests.post(f"{self.host}/api/chat", json=payload)
+                    response.raise_for_status()
+                    result = response.json()
+                    
+                    # Create a response object with content attribute
+                    class Response:
+                        def __init__(self, content):
+                            self.content = content
+                    
+                    return Response(result.get("message", {}).get("content", ""))
+            
+            return OllamaChat(model=model_name, host=host)
+        
+        elif provider == "lmstudio":
+            host = providers_config.get("lmstudio", {}).get("host", "http://localhost:1234/v1")
+            
+            # Use OpenAI client with custom base URL for LM Studio
+            return ChatOpenAI(model=model_name, base_url=host)
+        
         else:
-            return ChatOpenAI(model=model_name)
+            raise Exception("Invalid LLM provider")
     
     @staticmethod
     def respond_to_query(

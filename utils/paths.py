@@ -59,12 +59,28 @@ class Paths:
         return os.path.join(Paths.get_vector_db_dir(), notebook_name)
     
     @staticmethod
+    def get_uploaded_files_dir():
+        """Get the uploaded files directory."""
+        return os.path.join(Paths.get_app_dir(), "uploaded_files")
+    
+    @staticmethod
+    def get_notebook_files_dir(notebook_name):
+        """Get the uploaded files directory for a specific notebook."""
+        return os.path.join(Paths.get_uploaded_files_dir(), notebook_name)
+    
+    @staticmethod
+    def get_database_path():
+        """Get the SQLite database file path."""
+        return os.path.join(Paths.get_app_dir(), "notebooks.db")
+    
+    @staticmethod
     def ensure_directories_exist():
         """Ensure all required directories exist."""
         directories = [
             Paths.get_config_dir(),
             Paths.get_data_dir(),
-            Paths.get_vector_db_dir()
+            Paths.get_vector_db_dir(),
+            Paths.get_uploaded_files_dir()
         ]
         
         for directory in directories:

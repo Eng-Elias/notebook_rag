@@ -45,7 +45,7 @@ class ConfigManager:
             raise IOError(f"Error reading YAML file: {e}") from e
     
     @staticmethod
-    def load_env(api_key_type: str = "OPENAI_API_KEY") -> None:
+    def load_env(api_key_type: str = "GROQ_API_KEY") -> None:
         """
         Load environment variables from a .env file and check for required keys.
         
