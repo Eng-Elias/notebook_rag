@@ -56,8 +56,22 @@ def create_notebook():
         if not notebook_name or len(notebook_name) < 3:
             st.error("Notebook name must be at least 3 characters long.")
             return
+            
+        # Validate and normalize notebook name for ChromaDB compatibility
+        # Replace spaces with dashes
+        notebook_name = notebook_name.replace(" ", "-")
         
-        # Create notebook in database
+        # Check if name starts and ends with alphanumeric character
+        import re
+        if not re.match(r'^[a-zA-Z0-9].*[a-zA-Z0-9]$', notebook_name):
+            st.error("Notebook name must start and end with a letter or number.")
+            return
+            
+        # Check if normalized name contains only allowed characters
+        if not re.match(r'^[a-zA-Z0-9._-]+$', notebook_name):
+            st.error("Notebook name can only contain letters, numbers, periods, underscores, and dashes.")
+            return
+
         DatabaseManager.create_notebook(notebook_name)
         
         # Initialize collection
