@@ -4,9 +4,13 @@
 
 A modular Streamlit application for document chat with multiple notebooks using Retrieval-Augmented Generation (RAG).
 
+![Notebook-RAG](Notebook-RAG.png)
+
+📺 [Watch the demo video](https://youtu.be/dmYY6ZKtUrc)
+
 ## TL;DR
 
-Notebook-RAG is a RAG application that lets you organize documents into separate notebooks, automatically process them, and chat with them using various LLM providers.
+Notebook-RAG is a RAG application that lets you organize documents into separate notebooks, automatically process them, and chat with them using various LLM providers. It has been tested with software engineering papers from [this GitHub repository](https://github.com/facundoolano/software-papers), but you can use it with any text, markdown, or PDF files.
 
 ## What is this about? (Purpose)
 
