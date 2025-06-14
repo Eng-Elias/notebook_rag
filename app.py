@@ -43,7 +43,7 @@ if "llm_provider" not in st.session_state:
     st.session_state.llm_provider = app_config.get("llm", {}).get("provider", "groq")
 if "llm_model" not in st.session_state:
     app_config = ConfigManager.get_app_config()
-    st.session_state.llm_model = app_config.get("llm", {}).get("model", "gpt-3.5-turbo")
+    st.session_state.llm_model = app_config.get("llm", {}).get("model", "meta-llama/llama-4-scout-17b-16e-instruct")
 if "notebook_selector" not in st.session_state:
     st.session_state.notebook_selector = None
 
