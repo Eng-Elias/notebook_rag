@@ -154,6 +154,10 @@ The application has been tested with various document types and LLM providers to
    ```bash
    pip install -r requirements.txt
    ```
+   for CUDA support run this commands too:
+   ```bash
+   pip install -r requirements_cuda.txt
+   ```
 
 4. Create a `.env` file in the project root with your API keys:
    ```
