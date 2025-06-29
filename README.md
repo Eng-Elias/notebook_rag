@@ -4,6 +4,9 @@
 
 A modular Streamlit application for document chat with multiple notebooks using Retrieval-Augmented Generation (RAG).
 
+This project is the Module1 publication for Ready Tensor Agentic AI Developer Certification 2025:
+[AAIDC2025 Module1 Project - Notebook-RAG](https://app.readytensor.ai/publications/HnFeAayhC99X)
+
 ![Notebook-RAG](Notebook-RAG.png)
 
 📺 [Watch the demo video](https://youtu.be/dmYY6ZKtUrc)
